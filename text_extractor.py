@@ -22,7 +22,8 @@ def extract_text_from_pdf(file_bytes):
         return clean_text(text)
     
     except Exception as e:
-        st.error(f"Error extracting text from PDF: {str(e)}")
+        print(f"Error extracting text from PDF: {str(e)}")
+        st.error("Failed to process PDF file. Please try with a different file.")
         return ""
 
 def extract_text_from_docx(file_bytes):
@@ -38,7 +39,8 @@ def extract_text_from_docx(file_bytes):
         return clean_text(text)
     
     except Exception as e:
-        st.error(f"Error extracting text from DOCX: {str(e)}")
+        print(f"Error extracting text from DOCX: {str(e)}")
+        st.error("Failed to process DOCX file. Please try with a different file.")
         return ""
 
 def clean_text(text):

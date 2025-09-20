@@ -1,16 +1,17 @@
 import streamlit as st
-import hashlib
+import bcrypt
 import secrets
 from datetime import datetime, timedelta
 from database_postgres import save_user, get_user_by_username, save_session, get_session
 
 def hash_password(password):
-    """Hash password using SHA-256"""
-    return hashlib.sha256(password.encode()).hexdigest()
+    """Hash password using bcrypt with salt"""
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
 
 def verify_password(password, password_hash):
-    """Verify password against hash"""
-    return hash_password(password) == password_hash
+    """Verify password against bcrypt hash"""
+    return bcrypt.checkpw(password.encode('utf-8'), password_hash.encode('utf-8'))
 
 def generate_session_token():
     """Generate secure session token"""

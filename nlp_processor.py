@@ -110,7 +110,7 @@ def parse_job_description(job_text):
         # the newest OpenAI model is "gpt-5" which was released August 7, 2025.
         # do not change this unless explicitly requested by the user
         response = openai_client.chat.completions.create(
-            model="gpt-5",
+            model="gpt-4o-mini",
             messages=[
                 {
                     "role": "system",
@@ -236,7 +236,7 @@ def analyze_resume_semantic(resume_text, job_requirements):
         # the newest OpenAI model is "gpt-5" which was released August 7, 2025.
         # do not change this unless explicitly requested by the user
         response = openai_client.chat.completions.create(
-            model="gpt-5",
+            model="gpt-4o-mini",
             messages=[
                 {
                     "role": "system",
@@ -295,7 +295,7 @@ def generate_improvement_suggestions(resume_analysis, job_requirements, missing_
         # the newest OpenAI model is "gpt-5" which was released August 7, 2025.
         # do not change this unless explicitly requested by the user
         response = openai_client.chat.completions.create(
-            model="gpt-5",
+            model="gpt-4o-mini",
             messages=[
                 {
                     "role": "system",

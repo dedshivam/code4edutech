@@ -27,7 +27,8 @@ def get_connection():
                 database=PGDATABASE
             )
     except Exception as e:
-        st.error(f"Database connection error: {e}")
+        # Log the detailed error server-side but show generic message to users
+        print(f"Database connection error: {e}")
         return None
 
 def init_database():
@@ -118,7 +119,8 @@ def init_database():
         return True
         
     except Exception as e:
-        st.error(f"Database initialization error: {e}")
+        # Log the detailed error server-side but show generic message to users
+        print(f"Database initialization error: {e}")
         conn.rollback()
         return False
     finally:
@@ -144,7 +146,7 @@ def save_job_description(title, company, location, description, required_skills,
         return job_id
         
     except Exception as e:
-        st.error(f"Error saving job description: {e}")
+        print(f"Error saving job description: {e}")
         conn.rollback()
         return None
     finally:
@@ -170,7 +172,7 @@ def save_resume(filename, candidate_name, candidate_email, extracted_text, skill
         return resume_id
         
     except Exception as e:
-        st.error(f"Error saving resume: {e}")
+        print(f"Error saving resume: {e}")
         conn.rollback()
         return None
     finally:
@@ -196,7 +198,7 @@ def save_evaluation(job_id, resume_id, relevance_score, hard_match_score, semant
         return evaluation_id
         
     except Exception as e:
-        st.error(f"Error saving evaluation: {e}")
+        print(f"Error saving evaluation: {e}")
         conn.rollback()
         return None
     finally:
@@ -217,7 +219,8 @@ def get_job_descriptions():
         return jobs
         
     except Exception as e:
-        st.error(f"Error fetching job descriptions: {e}")
+        print(f"Error fetching job descriptions: {e}")
+        st.error("Unable to load job descriptions. Please refresh the page.")
         return []
     finally:
         cursor.close()
@@ -237,7 +240,8 @@ def get_resumes():
         return resumes
         
     except Exception as e:
-        st.error(f"Error fetching resumes: {e}")
+        print(f"Error fetching resumes: {e}")
+        st.error("Unable to load resumes. Please refresh the page.")
         return []
     finally:
         cursor.close()
@@ -280,7 +284,8 @@ def get_evaluations(job_id=None, min_score=None, verdict=None):
         return evaluations
         
     except Exception as e:
-        st.error(f"Error fetching evaluations: {e}")
+        print(f"Error fetching evaluations: {e}")
+        st.error("Unable to load evaluations. Please refresh the page.")
         return []
     finally:
         cursor.close()
@@ -300,7 +305,8 @@ def get_job_by_id(job_id):
         return job
         
     except Exception as e:
-        st.error(f"Error fetching job: {e}")
+        print(f"Error fetching job: {e}")
+        st.error("Unable to load job information. Please try again.")
         return None
     finally:
         cursor.close()
@@ -320,7 +326,8 @@ def get_resume_by_id(resume_id):
         return resume
         
     except Exception as e:
-        st.error(f"Error fetching resume: {e}")
+        print(f"Error fetching resume: {e}")
+        st.error("Unable to load resume information. Please try again.")
         return None
     finally:
         cursor.close()
@@ -363,7 +370,8 @@ def get_evaluation_stats():
         }
         
     except Exception as e:
-        st.error(f"Error fetching evaluation stats: {e}")
+        print(f"Error fetching evaluation stats: {e}")
+        st.error("Unable to load statistics. Please refresh the page.")
         return {'total_jobs': 0, 'total_resumes': 0, 'total_evaluations': 0, 'verdict_distribution': {}, 'average_score': 0}
     finally:
         cursor.close()
@@ -389,7 +397,8 @@ def save_user(username, email, password_hash, location, role='placement_team'):
         return user_id
         
     except Exception as e:
-        st.error(f"Error saving user: {e}")
+        print(f"Error saving user: {e}")
+        st.error("Registration failed. Please try again.")
         conn.rollback()
         return None
     finally:
@@ -410,7 +419,8 @@ def get_user_by_username(username):
         return user
         
     except Exception as e:
-        st.error(f"Error fetching user: {e}")
+        print(f"Error fetching user: {e}")
+        st.error("Login failed. Please check your credentials.")
         return None
     finally:
         cursor.close()
@@ -435,7 +445,8 @@ def save_session(user_id, session_token, expires_at):
         return session_id
         
     except Exception as e:
-        st.error(f"Error saving session: {e}")
+        print(f"Error saving session: {e}")
+        st.error("Session creation failed. Please try logging in again.")
         conn.rollback()
         return None
     finally:
@@ -461,7 +472,8 @@ def get_session(session_token):
         return session
         
     except Exception as e:
-        st.error(f"Error fetching session: {e}")
+        print(f"Error fetching session: {e}")
+        st.error("Session verification failed. Please log in again.")
         return None
     finally:
         cursor.close()
