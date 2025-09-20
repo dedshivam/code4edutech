@@ -5,7 +5,7 @@ import time
 from datetime import datetime
 import plotly.express as px
 import plotly.graph_objects as go
-from text_extractor import process_uploaded_file
+from text_extractor import process_uploaded_file, extract_text_from_pdf, extract_text_from_docx
 from nlp_processor import parse_job_description
 from scoring_engine import ResumeScorer
 from database_postgres import (
@@ -95,27 +95,93 @@ def render_main_dashboard():
         st.info("No evaluations found. Start by uploading job descriptions and resumes!")
 
 def render_job_upload_page():
-    """Render job description upload page"""
+    """Render job description upload page with PDF/DOCX import support"""
     st.header("📝 Upload Job Description")
     
+    # File upload section
+    uploaded_file = st.file_uploader(
+        "Upload Job Description File",
+        type=['pdf', 'docx', 'doc'],
+        help="Supported formats: PDF, DOCX, DOC"
+    )
+    
+    # Initialize variables
+    extracted_text = ""
+    prefilled_title = ""
+    prefilled_company = ""
+    prefilled_location = ""
+    
+    # Process uploaded file if present
+    if uploaded_file:
+        with st.spinner("Extracting text from document..."):
+            file_bytes = uploaded_file.read()
+            filename = uploaded_file.name
+            file_extension = filename.lower().split('.')[-1]
+            
+            # Extract text based on file type
+            if file_extension == 'pdf':
+                from text_extractor import extract_text_from_pdf
+                extracted_text = extract_text_from_pdf(file_bytes)
+            elif file_extension in ['docx', 'doc']:
+                from text_extractor import extract_text_from_docx
+                extracted_text = extract_text_from_docx(file_bytes)
+            
+            if not extracted_text:
+                st.error("Could not extract text from the file. Please check the file format and try again.")
+                return
+            
+            # Smart prefilling using regex patterns
+            import re
+            text_lines = extracted_text.split('\n')
+            
+            # Extract Job Title - look for first non-empty line ≤ 100 chars
+            for line in text_lines[:5]:
+                line = line.strip()
+                if line and len(line) <= 100 and not any(keyword in line.lower() for keyword in ['company', 'location', 'description', 'requirements']):
+                    # Remove common prefixes
+                    line = re.sub(r'^(job\s*title\s*[:-]\s*|position\s*[:-]\s*|role\s*[:-]\s*)', '', line, flags=re.IGNORECASE).strip()
+                    if line:
+                        prefilled_title = line
+                        break
+            
+            # Extract Company - look for patterns
+            company_pattern = r'(?:company|organization|employer|firm)\s*[:-]\s*(.+?)(?:\n|$)'
+            company_match = re.search(company_pattern, extracted_text, re.IGNORECASE | re.MULTILINE)
+            if company_match:
+                prefilled_company = company_match.group(1).strip()[:50]  # Limit length
+            
+            # Extract Location - look for patterns
+            location_pattern = r'(?:location|place|office|city)\s*[:-]\s*(.+?)(?:\n|$)'
+            location_match = re.search(location_pattern, extracted_text, re.IGNORECASE | re.MULTILINE)
+            if location_match:
+                prefilled_location = location_match.group(1).strip()[:50]  # Limit length
+            
+            st.success(f"✅ Text extracted successfully! ({len(extracted_text)} characters)")
+    
+    # Form with extracted/prefilled data
     with st.form("job_upload_form"):
         col1, col2 = st.columns(2)
         
         with col1:
-            job_title = st.text_input("Job Title*", placeholder="e.g., Senior Data Scientist")
-            company = st.text_input("Company", placeholder="e.g., Tech Corp")
+            job_title = st.text_input("Job Title*", value=prefilled_title, placeholder="e.g., Senior Data Scientist")
+            company = st.text_input("Company", value=prefilled_company, placeholder="e.g., Tech Corp")
         
         with col2:
-            location = st.text_input("Location", placeholder="e.g., Hyderabad, India")
+            location = st.text_input("Location", value=prefilled_location, placeholder="e.g., Hyderabad, India")
         
-        job_description = st.text_area("Job Description*", height=300, 
-                                     placeholder="Paste the complete job description here...")
+        # Show extracted text in editable area
+        job_description = st.text_area(
+            "Job Description*", 
+            value=extracted_text,
+            height=300, 
+            placeholder="Upload a PDF/DOCX file above or paste the complete job description here..."
+        )
         
         submitted = st.form_submit_button("Parse and Save Job Description")
         
         if submitted:
             if not job_title or not job_description:
-                st.error("Please fill in all required fields (marked with *)")
+                st.error("Please fill in all required fields (marked with *). Make sure to upload a file or enter job description text.")
             else:
                 with st.spinner("Parsing job description..."):
                     # Parse job description using NLP

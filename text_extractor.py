@@ -16,7 +16,9 @@ def extract_text_from_pdf(file_bytes):
         
         for page_num in range(pdf_document.page_count):
             page = pdf_document.load_page(page_num)
-            text += page.get_text()
+            # Use get_text() method for text extraction
+            page_text = page.get_text() if hasattr(page, 'get_text') else page.get_text('text')
+            text += page_text
         
         pdf_document.close()
         return clean_text(text)
