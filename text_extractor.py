@@ -1,4 +1,7 @@
-import fitz  # PyMuPDF
+try:
+    import pymupdf as fitz  # PyMuPDF
+except ImportError:
+    import fitz  # fallback
 import docx
 import re
 import streamlit as st

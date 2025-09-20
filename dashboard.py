@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 from text_extractor import process_uploaded_file
 from nlp_processor import parse_job_description
 from scoring_engine import ResumeScorer
-from database import (
+from database_postgres import (
     save_job_description, save_resume, save_evaluation, 
     get_job_descriptions, get_resumes, get_evaluations, 
     get_job_by_id, get_resume_by_id, get_evaluation_stats
@@ -24,8 +24,15 @@ def render_dashboard(page):
         render_resume_upload_page()
     elif page == "Batch Evaluation":
         render_batch_evaluation_page()
+        st.markdown("---")
+        from batch_processor import render_enhanced_batch_processing
+        render_enhanced_batch_processing()
     elif page == "Analytics":
         render_analytics_page()
+        st.markdown("---")
+        render_advanced_analytics()
+    elif page == "Student Portal":
+        render_student_portal()
 
 def render_main_dashboard():
     """Render main dashboard with overview and recent evaluations"""
@@ -66,10 +73,12 @@ def render_main_dashboard():
     if recent_evaluations:
         eval_data = []
         for eval_row in recent_evaluations:
+            # PostgreSQL query returns: e.*, j.title as job_title, j.company, r.filename, r.candidate_name, r.candidate_email
+            # So the columns are: evaluation columns (0-10) + job_title (11) + company (12) + filename (13) + candidate_name (14) + candidate_email (15)
             eval_data.append({
-                'Job Title': eval_row[14],  # job_title
-                'Company': eval_row[15],    # company
-                'Candidate': eval_row[17],  # candidate_name
+                'Job Title': eval_row[11] if len(eval_row) > 11 else 'Unknown',  # job_title
+                'Company': eval_row[12] if len(eval_row) > 12 else 'Unknown',    # company
+                'Candidate': eval_row[14] if len(eval_row) > 14 else 'Unknown',  # candidate_name
                 'Score': eval_row[3],       # relevance_score
                 'Verdict': eval_row[6],     # verdict
                 'Date': eval_row[10]        # evaluated_at
@@ -339,10 +348,10 @@ def render_batch_evaluation_page():
         for eval_row in evaluations:
             eval_data.append({
                 'ID': eval_row[0],
-                'Job Title': eval_row[14],
-                'Company': eval_row[15],
-                'Candidate': eval_row[17] or 'Unknown',
-                'Email': eval_row[18] or 'Not provided',
+                'Job Title': eval_row[11] if len(eval_row) > 11 else 'Unknown',
+                'Company': eval_row[12] if len(eval_row) > 12 else 'Unknown',
+                'Candidate': eval_row[14] if len(eval_row) > 14 else 'Unknown',
+                'Email': eval_row[15] if len(eval_row) > 15 else 'Not provided',
                 'Score': eval_row[3],
                 'Verdict': eval_row[6],
                 'Date': eval_row[10]
@@ -478,3 +487,382 @@ def display_evaluation_results(evaluation_result):
     # Detailed analysis
     with st.expander("Detailed Analysis"):
         st.json(evaluation_result['evaluation_details'])
+
+def render_student_portal():
+    """Render student portal for viewing evaluation feedback"""
+    st.header("🎓 Student Portal")
+    st.markdown("View your resume evaluation feedback and improvement suggestions")
+    
+    # Student email input for finding their evaluations
+    st.subheader("Find Your Evaluation Results")
+    student_email = st.text_input("Enter your email address:", placeholder="your.email@example.com")
+    
+    if student_email:
+        # Get evaluations for this student
+        all_evaluations = get_evaluations()
+        student_evaluations = []
+        
+        for eval_row in all_evaluations:
+            # Check if email matches (index 15 for candidate_email)
+            if len(eval_row) > 15 and eval_row[15] and eval_row[15].lower() == student_email.lower():
+                student_evaluations.append(eval_row)
+        
+        if student_evaluations:
+            st.success(f"Found {len(student_evaluations)} evaluation(s) for {student_email}")
+            
+            for i, eval_row in enumerate(student_evaluations, 1):
+                with st.expander(f"Evaluation #{i} - {eval_row[11] if len(eval_row) > 11 else 'Unknown Job'} at {eval_row[12] if len(eval_row) > 12 else 'Unknown Company'}"):
+                    
+                    # Basic evaluation info
+                    col1, col2, col3 = st.columns(3)
+                    
+                    with col1:
+                        score = eval_row[3]
+                        verdict = eval_row[6]
+                        verdict_color = {"High": "🟢", "Medium": "🟡", "Low": "🔴"}.get(verdict, "⚪")
+                        st.metric("Overall Score", f"{score}/100")
+                        st.write(f"**Verdict:** {verdict_color} {verdict}")
+                    
+                    with col2:
+                        st.metric("Technical Match", f"{eval_row[4]:.1f}/100")
+                        st.metric("Semantic Match", f"{eval_row[5]:.1f}/100")
+                    
+                    with col3:
+                        st.write(f"**Job:** {eval_row[11] if len(eval_row) > 11 else 'Unknown'}")
+                        st.write(f"**Company:** {eval_row[12] if len(eval_row) > 12 else 'Unknown'}")
+                        st.write(f"**Evaluated:** {eval_row[10]}")
+                    
+                    # Missing skills
+                    if eval_row[7]:  # missing_skills
+                        try:
+                            missing_skills = json.loads(eval_row[7])
+                            if missing_skills:
+                                st.subheader("📋 Skills to Develop")
+                                skills_text = ", ".join(missing_skills)
+                                st.error(f"Consider learning: {skills_text}")
+                        except:
+                            pass
+                    
+                    # Improvement suggestions
+                    if eval_row[8]:  # improvement_suggestions
+                        try:
+                            suggestions = json.loads(eval_row[8])
+                            if suggestions:
+                                st.subheader("💡 Improvement Suggestions")
+                                for j, suggestion in enumerate(suggestions, 1):
+                                    st.write(f"{j}. {suggestion}")
+                        except:
+                            pass
+                    
+                    # Detailed analysis
+                    if eval_row[9]:  # evaluation_details
+                        with st.expander("📊 Detailed Analysis"):
+                            try:
+                                details = json.loads(eval_row[9])
+                                
+                                # Skills analysis
+                                if 'hard_match_details' in details and 'skills' in details['hard_match_details']:
+                                    skills_info = details['hard_match_details']['skills']
+                                    st.write("**Skills Match Analysis:**")
+                                    st.write(f"• Required skills matched: {skills_info.get('matched_required', 0)}/{skills_info.get('total_required', 0)}")
+                                    st.write(f"• Preferred skills matched: {skills_info.get('matched_preferred', 0)}/{skills_info.get('total_preferred', 0)}")
+                                
+                                # Experience analysis
+                                if 'hard_match_details' in details and 'experience' in details['hard_match_details']:
+                                    exp_info = details['hard_match_details']['experience']
+                                    st.write("**Experience Analysis:**")
+                                    st.write(f"• Your experience: {exp_info.get('resume_years', 0)} years")
+                                    st.write(f"• Required experience: {exp_info.get('required_years', 0)} years")
+                                
+                                # Education analysis
+                                if 'hard_match_details' in details and 'education' in details['hard_match_details']:
+                                    edu_info = details['hard_match_details']['education']
+                                    st.write("**Education Analysis:**")
+                                    st.write(f"• Your education: {edu_info.get('resume_level', 'Unknown').title()}")
+                                    st.write(f"• Required education: {edu_info.get('required_level', 'Unknown').title()}")
+                                
+                            except:
+                                st.write("Detailed analysis data not available")
+        else:
+            st.info("No evaluations found for this email address. Make sure you've submitted your resume for evaluation.")
+    
+    # General improvement tips
+    st.markdown("---")
+    st.subheader("💼 General Career Tips")
+    
+    tips_col1, tips_col2 = st.columns(2)
+    
+    with tips_col1:
+        st.markdown("""
+        **Technical Skills:**
+        - Keep your technical skills updated with industry trends
+        - Add specific project examples that demonstrate your skills
+        - Include metrics and achievements in your experience
+        - Consider getting relevant certifications
+        """)
+    
+    with tips_col2:
+        st.markdown("""
+        **Resume Tips:**
+        - Use clear, professional formatting
+        - Quantify your achievements with numbers
+        - Tailor your resume for each job application
+        - Keep it concise but comprehensive
+        """)
+    
+    # Contact information
+    st.markdown("---")
+    st.info("💬 **Need help?** Contact your placement coordinator for personalized guidance on improving your profile.")
+
+def render_advanced_analytics():
+    """Render advanced analytics and insights"""
+    st.header("📈 Advanced Analytics & Insights")
+    st.markdown("Deep insights and reporting for placement team decision making")
+    
+    # Get all data
+    evaluations = get_evaluations()
+    jobs = get_job_descriptions()
+    resumes = get_resumes()
+    
+    if not evaluations:
+        st.info("No evaluation data available yet. Complete some evaluations to see advanced analytics.")
+        return
+    
+    # Create comprehensive DataFrame
+    eval_data = []
+    for eval_row in evaluations:
+        eval_data.append({
+            'evaluation_id': eval_row[0],
+            'job_id': eval_row[1],
+            'resume_id': eval_row[2],
+            'relevance_score': eval_row[3],
+            'hard_match_score': eval_row[4],
+            'semantic_match_score': eval_row[5],
+            'verdict': eval_row[6],
+            'job_title': eval_row[11] if len(eval_row) > 11 else 'Unknown',
+            'company': eval_row[12] if len(eval_row) > 12 else 'Unknown',
+            'candidate_name': eval_row[14] if len(eval_row) > 14 else 'Unknown',
+            'candidate_email': eval_row[15] if len(eval_row) > 15 else 'Unknown',
+            'evaluated_at': eval_row[10]
+        })
+    
+    df = pd.DataFrame(eval_data)
+    
+    # Advanced metrics dashboard
+    st.subheader("🎯 Key Performance Indicators")
+    
+    col1, col2, col3, col4, col5 = st.columns(5)
+    
+    with col1:
+        avg_score = df['relevance_score'].mean()
+        st.metric("Average Score", f"{avg_score:.1f}", f"{avg_score-70:.1f}" if avg_score > 70 else f"+{70-avg_score:.1f}")
+    
+    with col2:
+        high_quality = len(df[df['relevance_score'] >= 80])
+        st.metric("High Quality Candidates", high_quality, f"{(high_quality/len(df)*100):.1f}%")
+    
+    with col3:
+        avg_hard_match = df['hard_match_score'].mean()
+        st.metric("Avg Technical Match", f"{avg_hard_match:.1f}")
+    
+    with col4:
+        avg_semantic = df['semantic_match_score'].mean()
+        st.metric("Avg Semantic Match", f"{avg_semantic:.1f}")
+    
+    with col5:
+        total_evaluations = len(df)
+        st.metric("Total Evaluations", total_evaluations)
+    
+    # Performance by location analysis
+    st.subheader("🌍 Performance by Location")
+    if 'location' in df.columns:
+        location_stats = df.groupby('location').agg({
+            'relevance_score': ['mean', 'count'],
+            'verdict': lambda x: (x == 'High').sum()
+        }).round(2)
+        
+        location_stats.columns = ['Avg Score', 'Total Evaluations', 'High Potential']
+        st.dataframe(location_stats, use_container_width=True)
+    
+    # Advanced score distribution analysis
+    st.subheader("📊 Score Distribution Analysis")
+    
+    # Score distribution by verdict
+    fig_box = px.box(df, x='verdict', y='relevance_score', 
+                     title="Score Distribution by Verdict",
+                     color='verdict',
+                     color_discrete_map={'High': '#28a745', 'Medium': '#ffc107', 'Low': '#dc3545'})
+    st.plotly_chart(fig_box, use_container_width=True)
+    
+    # Time series analysis
+    st.subheader("📅 Evaluation Trends Over Time")
+    df['date'] = pd.to_datetime(df['evaluated_at']).dt.date
+    
+    # Daily evaluation counts and average scores
+    daily_stats = df.groupby('date').agg({
+        'relevance_score': ['mean', 'count'],
+        'verdict': lambda x: (x == 'High').sum()
+    }).reset_index()
+    
+    daily_stats.columns = ['date', 'avg_score', 'total_evals', 'high_potential']
+    
+    fig_time = px.line(daily_stats, x='date', y='avg_score', 
+                       title="Average Scores Over Time",
+                       markers=True)
+    fig_time.add_scatter(x=daily_stats['date'], y=daily_stats['total_evals'], 
+                        mode='lines+markers', name='Daily Evaluations', yaxis='y2')
+    
+    fig_time.update_layout(yaxis2=dict(title="Number of Evaluations", overlaying='y', side='right'))
+    st.plotly_chart(fig_time, use_container_width=True)
+    
+    # Job performance comparison
+    st.subheader("💼 Job Position Analysis")
+    
+    job_performance = df.groupby('job_title').agg({
+        'relevance_score': ['mean', 'std', 'count'],
+        'hard_match_score': 'mean',
+        'semantic_match_score': 'mean',
+        'verdict': lambda x: (x == 'High').sum()
+    }).round(2)
+    
+    job_performance.columns = ['Avg Score', 'Score StdDev', 'Total Candidates', 'Avg Hard Match', 'Avg Semantic', 'High Potential']
+    job_performance = job_performance.sort_values('Avg Score', ascending=False)
+    
+    st.dataframe(job_performance, use_container_width=True)
+    
+    # Candidate quality heatmap
+    st.subheader("🔥 Quality Heatmap")
+    
+    # Create score bins
+    df['score_bin'] = pd.cut(df['relevance_score'], bins=[0, 50, 70, 85, 100], 
+                            labels=['Poor (0-50)', 'Fair (50-70)', 'Good (70-85)', 'Excellent (85-100)'])
+    
+    heatmap_data = df.groupby(['job_title', 'score_bin']).size().unstack(fill_value=0)
+    
+    fig_heatmap = px.imshow(heatmap_data.values, 
+                           x=heatmap_data.columns, 
+                           y=heatmap_data.index,
+                           title="Candidate Quality Distribution by Job Position",
+                           aspect="auto")
+    st.plotly_chart(fig_heatmap, use_container_width=True)
+    
+    # Skills gap analysis
+    st.subheader("🎯 Skills Gap Analysis")
+    
+    try:
+        # Analyze missing skills from evaluations
+        missing_skills_data = []
+        for eval_row in evaluations:
+            if eval_row[7]:  # missing_skills column
+                try:
+                    missing_skills = json.loads(eval_row[7])
+                    job_title = eval_row[11] if len(eval_row) > 11 else 'Unknown'
+                    for skill in missing_skills:
+                        missing_skills_data.append({
+                            'job_title': job_title,
+                            'skill': skill,
+                            'evaluation_id': eval_row[0]
+                        })
+                except:
+                    pass
+        
+        if missing_skills_data:
+            skills_df = pd.DataFrame(missing_skills_data)
+            
+            # Most commonly missing skills
+            top_missing = skills_df['skill'].value_counts().head(10)
+            
+            fig_skills = px.bar(x=top_missing.index, y=top_missing.values,
+                               title="Top 10 Most Commonly Missing Skills",
+                               labels={'x': 'Skills', 'y': 'Frequency'})
+            st.plotly_chart(fig_skills, use_container_width=True)
+            
+            # Skills gap by job position
+            skills_by_job = skills_df.groupby(['job_title', 'skill']).size().reset_index(name='count')
+            skills_pivot = skills_by_job.pivot(index='job_title', columns='skill', values='count').fillna(0)
+            
+            st.subheader("Missing Skills by Job Position")
+            st.dataframe(skills_pivot, use_container_width=True)
+    
+    except Exception as e:
+        st.info("Skills gap analysis not available - no sufficient data")
+    
+    # Recommendations engine
+    st.subheader("🤖 AI Recommendations")
+    
+    recommendations = []
+    
+    # Score-based recommendations
+    if avg_score < 65:
+        recommendations.append("📉 **Low Average Score Alert**: Consider revising job requirements or improving candidate screening process.")
+    
+    if df['hard_match_score'].mean() < df['semantic_match_score'].mean() - 10:
+        recommendations.append("🔧 **Skills Mismatch**: Candidates have good overall profiles but lack specific technical skills. Consider skills training programs.")
+    
+    if len(df[df['verdict'] == 'High']) / len(df) < 0.2:
+        recommendations.append("🎯 **Low High-Potential Rate**: Only {:.1%} of candidates are high-potential. Review sourcing strategies.".format(len(df[df['verdict'] == 'High']) / len(df)))
+    
+    # Time-based recommendations
+    if len(daily_stats) > 7:
+        recent_avg = daily_stats.tail(3)['avg_score'].mean()
+        older_avg = daily_stats.head(-3)['avg_score'].mean()
+        
+        if recent_avg < older_avg - 5:
+            recommendations.append("📉 **Declining Quality Trend**: Recent candidates show lower scores. Review current sourcing channels.")
+        elif recent_avg > older_avg + 5:
+            recommendations.append("📈 **Improving Quality Trend**: Recent candidates show higher scores. Current sourcing strategy is working well.")
+    
+    if recommendations:
+        for rec in recommendations:
+            st.info(rec)
+    else:
+        st.success("✅ **Performance is Good**: No major issues detected in current evaluation patterns.")
+    
+    # Export comprehensive report
+    st.subheader("📄 Export Reports")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        if st.button("📊 Export Analytics Report"):
+            report_data = {
+                'summary_stats': {
+                    'total_evaluations': len(df),
+                    'average_score': avg_score,
+                    'high_potential_rate': len(df[df['verdict'] == 'High']) / len(df),
+                    'avg_hard_match': avg_hard_match,
+                    'avg_semantic_match': avg_semantic
+                },
+                'job_performance': job_performance.to_dict(),
+                'daily_trends': daily_stats.to_dict('records'),
+                'recommendations': recommendations
+            }
+            
+            report_json = json.dumps(report_data, indent=2, default=str)
+            st.download_button(
+                label="📥 Download Analytics Report (JSON)",
+                data=report_json,
+                file_name=f"analytics_report_{time.strftime('%Y%m%d_%H%M%S')}.json",
+                mime="application/json"
+            )
+    
+    with col2:
+        if st.button("📋 Export Evaluation Data"):
+            csv_data = df.to_csv(index=False)
+            st.download_button(
+                label="📥 Download Raw Data (CSV)",
+                data=csv_data,
+                file_name=f"evaluation_data_{time.strftime('%Y%m%d_%H%M%S')}.csv",
+                mime="text/csv"
+            )
+    
+    with col3:
+        if st.button("🎯 Export High Potential List"):
+            high_potential = df[df['verdict'] == 'High'][['candidate_name', 'candidate_email', 'job_title', 'company', 'relevance_score']].sort_values('relevance_score', ascending=False)
+            high_potential_csv = high_potential.to_csv(index=False)
+            st.download_button(
+                label="📥 Download High Potential (CSV)",
+                data=high_potential_csv,
+                file_name=f"high_potential_candidates_{time.strftime('%Y%m%d_%H%M%S')}.csv",
+                mime="text/csv"
+            )

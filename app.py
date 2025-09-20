@@ -1,7 +1,8 @@
 import streamlit as st
 import os
-from database import init_database
+from database_postgres import init_database
 from dashboard import render_dashboard
+from auth import require_authentication, render_user_info, check_authentication
 
 # Initialize database on app start
 if 'initialized' not in st.session_state:
@@ -16,22 +17,27 @@ def main():
         initial_sidebar_state="expanded"
     )
     
+    # Check authentication first
+    if not require_authentication():
+        return
+    
     st.title("🎯 AI-Powered Resume Evaluation System")
     st.markdown("**Innomatics Research Labs** - Automated Resume Relevance Check")
     
     # Check for OpenAI API key
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
-        st.error("⚠️ OpenAI API Key not found. Please set the OPENAI_API_KEY environment variable.")
-        st.info("Contact your system administrator to configure the API key.")
-        return
+        st.warning("⚠️ OpenAI API Key not configured. AI features will use rule-based fallbacks.")
     
     # Sidebar navigation
     st.sidebar.title("Navigation")
     page = st.sidebar.selectbox(
         "Select Page",
-        ["Dashboard", "Upload Job Description", "Upload Resume", "Batch Evaluation", "Analytics"]
+        ["Dashboard", "Upload Job Description", "Upload Resume", "Batch Evaluation", "Analytics", "Student Portal"]
     )
+    
+    # Render user info in sidebar
+    render_user_info()
     
     # Render selected page
     render_dashboard(page)
