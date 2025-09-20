@@ -289,12 +289,24 @@ def render_resume_upload_page():
                             job_details = get_job_by_id(job_id)
                             if job_details:
                                 with st.spinner("Evaluating resume..."):
-                                    # Prepare job requirements
+                                    # Prepare job requirements - handle both string and already parsed data
+                                    required_skills = job_details[5] if job_details[5] else []
+                                    if isinstance(required_skills, str):
+                                        required_skills = json.loads(required_skills)
+                                    
+                                    preferred_skills = job_details[6] if job_details[6] else []
+                                    if isinstance(preferred_skills, str):
+                                        preferred_skills = json.loads(preferred_skills)
+                                    
+                                    qualifications = job_details[7] if job_details[7] else {}
+                                    if isinstance(qualifications, str):
+                                        qualifications = json.loads(qualifications)
+                                    
                                     job_requirements = {
-                                        'required_skills': json.loads(job_details[5]) if job_details[5] else [],
-                                        'preferred_skills': json.loads(job_details[6]) if job_details[6] else [],
-                                        'experience_required': json.loads(job_details[7]).get('experience_required', 0) if job_details[7] else 0,
-                                        'education_required': json.loads(job_details[7]).get('education_required', 'unknown') if job_details[7] else 'unknown'
+                                        'required_skills': required_skills,
+                                        'preferred_skills': preferred_skills,
+                                        'experience_required': qualifications.get('experience_required', 0) if isinstance(qualifications, dict) else 0,
+                                        'education_required': qualifications.get('education_required', 'unknown') if isinstance(qualifications, dict) else 'unknown'
                                     }
                                     
                                     # Initialize scorer and evaluate

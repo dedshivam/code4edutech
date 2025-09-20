@@ -1,6 +1,6 @@
 modules = ["python-3.11"]
 [agent]
-integrations = ["python_openai:1.0.0"]
+integrations = ["python_openai:1.0.0", "python_gemini:1.0.0"]
 
 [nix]
 channel = "stable-25_05"
@@ -43,5 +43,5 @@ localPort = 40437
 externalPort = 3000
 
 [[ports]]
-localPort = 45409
+localPort = 45239
 externalPort = 3001
