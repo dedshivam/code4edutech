@@ -96,13 +96,19 @@ def require_authentication():
 
 def render_login_page():
     """Render login/registration page"""
-    st.title("🔐 Resume Evaluation System - Login")
-    st.markdown("**Innomatics Research Labs** - Placement Team Portal")
+    # Modern login header
+    st.markdown("""<div style='text-align: center; padding: 2rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 15px; margin-bottom: 2rem;'>
+        <h1 style='color: white; margin: 0; font-size: 2.5rem;'>🔐 InnoVantage Portal</h1>
+        <h3 style='color: white; margin: 0; font-weight: 300; opacity: 0.9;'>Placement Team Access</h3>
+        <p style='color: white; margin: 0; opacity: 0.8;'>Innomatics Research Labs • Secure Authentication</p>
+    </div>""", unsafe_allow_html=True)
     
     tab1, tab2 = st.tabs(["Login", "Register"])
     
     with tab1:
-        st.subheader("Login to Your Account")
+        st.markdown("""<div style='background: #f8f9fa; padding: 1.5rem; border-radius: 10px; margin-bottom: 1rem;'>
+            <h3 style='margin: 0; color: #495057; text-align: center;'>🛋️ Login to Your Account</h3>
+        </div>""", unsafe_allow_html=True)
         with st.form("login_form"):
             username = st.text_input("Username")
             password = st.text_input("Password", type="password")
@@ -119,7 +125,9 @@ def render_login_page():
                     st.error("Please enter both username and password")
     
     with tab2:
-        st.subheader("Register New Account")
+        st.markdown("""<div style='background: #e8f5e8; padding: 1.5rem; border-radius: 10px; margin-bottom: 1rem;'>
+            <h3 style='margin: 0; color: #2d5a2d; text-align: center;'>✨ Register New Account</h3>
+        </div>""", unsafe_allow_html=True)
         with st.form("register_form"):
             new_username = st.text_input("Username", key="reg_username")
             new_email = st.text_input("Email", key="reg_email")

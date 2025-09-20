@@ -37,7 +37,11 @@ def render_dashboard(page):
 
 def render_main_dashboard():
     """Render main dashboard with overview and recent evaluations"""
-    st.header("📊 Dashboard Overview")
+    # Modern dashboard header
+    st.markdown("""<div style='background: linear-gradient(90deg, #667eea, #764ba2); padding: 1.5rem; border-radius: 15px; margin-bottom: 2rem; text-align: center;'>
+        <h1 style='color: white; margin: 0; font-size: 2rem;'>📊 Executive Dashboard</h1>
+        <p style='color: white; margin: 0.5rem 0 0 0; opacity: 0.9;'>Real-time insights and analytics</p>
+    </div>""", unsafe_allow_html=True)
     
     # Get statistics
     stats = get_evaluation_stats()
