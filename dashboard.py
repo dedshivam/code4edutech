@@ -64,8 +64,8 @@ def render_main_dashboard():
     # Verdict distribution chart
     if stats['verdict_distribution']:
         st.subheader("Verdict Distribution")
-        verdict_df = pd.DataFrame(list(stats['verdict_distribution'].items()), 
-                                columns=['Verdict', 'Count'])
+        verdict_data = list(stats['verdict_distribution'].items())
+        verdict_df = pd.DataFrame(verdict_data, columns=['Verdict', 'Count'])
         
         fig = px.pie(verdict_df, values='Count', names='Verdict', 
                     color_discrete_map={'High': '#00ff00', 'Medium': '#ffff00', 'Low': '#ff0000'})
@@ -505,7 +505,8 @@ def render_analytics_page():
     # Verdict distribution over time
     st.subheader("Verdict Trends Over Time")
     df['date'] = pd.to_datetime(df['evaluated_at']).dt.date
-    verdict_trends = df.groupby(['date', 'verdict']).size().reset_index(name='count')
+    verdict_trends = df.groupby(['date', 'verdict']).size().reset_index()
+    verdict_trends.columns = ['date', 'verdict', 'count']
     
     fig_line = px.line(verdict_trends, x='date', y='count', color='verdict',
                        title="Verdict Distribution Over Time")
@@ -809,7 +810,7 @@ def render_advanced_analytics():
     }).round(2)
     
     job_performance.columns = ['Avg Score', 'Score StdDev', 'Total Candidates', 'Avg Hard Match', 'Avg Semantic', 'High Potential']
-    job_performance = job_performance.sort_values(by='Avg Score', ascending=False)
+    job_performance = job_performance.sort_values('Avg Score', ascending=False)
     
     st.dataframe(job_performance, use_container_width=True)
     
@@ -861,7 +862,8 @@ def render_advanced_analytics():
             st.plotly_chart(fig_skills, use_container_width=True)
             
             # Skills gap by job position
-            skills_by_job = skills_df.groupby(['job_title', 'skill']).size().reset_index(name='count')
+            skills_by_job = skills_df.groupby(['job_title', 'skill']).size().reset_index()
+            skills_by_job.columns = ['job_title', 'skill', 'count']
             skills_pivot = skills_by_job.pivot(index='job_title', columns='skill', values='count').fillna(0)
             
             st.subheader("Missing Skills by Job Position")
@@ -941,7 +943,7 @@ def render_advanced_analytics():
     
     with col3:
         if st.button("🎯 Export High Potential List"):
-            high_potential = df[df['verdict'] == 'High'][['candidate_name', 'candidate_email', 'job_title', 'company', 'relevance_score']].sort_values(by='relevance_score', ascending=False)
+            high_potential = df[df['verdict'] == 'High'][['candidate_name', 'candidate_email', 'job_title', 'company', 'relevance_score']].sort_values('relevance_score', ascending=False)
             high_potential_csv = high_potential.to_csv(index=False)
             st.download_button(
                 label="📥 Download High Potential (CSV)",

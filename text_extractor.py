@@ -16,9 +16,15 @@ def extract_text_from_pdf(file_bytes):
         
         for page_num in range(pdf_document.page_count):
             page = pdf_document.load_page(page_num)
-            # Use get_text() method for text extraction
-            page_text = page.get_text() if hasattr(page, 'get_text') else page.get_text('text')
-            text += page_text
+            # Use get_text() method for text extraction - handle different PyMuPDF versions
+            try:
+                text += page.get_text()
+            except AttributeError:
+                try:
+                    text += page.get_text('text')
+                except Exception as e:
+                    print(f"Warning: Could not extract text from page {page_num}: {e}")
+                    continue
         
         pdf_document.close()
         return clean_text(text)
@@ -46,19 +52,28 @@ def extract_text_from_docx(file_bytes):
         return ""
 
 def clean_text(text):
-    """Clean and normalize extracted text"""
+    """Clean and normalize extracted text while preserving line structure"""
     if not text:
         return ""
     
-    # Remove extra whitespace and normalize
-    text = re.sub(r'\s+', ' ', text)
-    text = text.strip()
+    # Remove common PDF artifacts but keep structure
+    text = re.sub(r'[^\w\s\-.,;:()\[\]@+/&%\n]', ' ', text)
     
-    # Remove common PDF artifacts
-    text = re.sub(r'[^\w\s\-.,;:()\[\]@+/&%]', ' ', text)
-    text = re.sub(r'\s+', ' ', text)
+    # Normalize spaces within lines but preserve line breaks
+    lines = text.split('\n')
+    cleaned_lines = []
+    for line in lines:
+        # Remove extra spaces within each line
+        cleaned_line = re.sub(r'[ \t]+', ' ', line.strip())
+        cleaned_lines.append(cleaned_line)
     
-    return text
+    # Join lines back, removing empty lines and excessive line breaks
+    text = '\n'.join(line for line in cleaned_lines if line)
+    
+    # Limit consecutive newlines to maximum 2
+    text = re.sub(r'\n{3,}', '\n\n', text)
+    
+    return text.strip()
 
 def extract_contact_info(text):
     """Extract contact information from text"""
