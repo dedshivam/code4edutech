@@ -314,7 +314,7 @@ def render_enhanced_batch_processing():
                         st.metric("Failed", batch_results['failed'])
                     
                     # Generate and display report
-                    if generate_report and batch_results['successful'] > 0:
+                    if generate_report and int(batch_results.get('successful', 0)) > 0:
                         st.subheader("📊 Batch Processing Report")
                         
                         report = processor.generate_batch_report(batch_results, job_title)
@@ -352,11 +352,11 @@ def render_enhanced_batch_processing():
                             )
                     
                     # Error details
-                    failed_results = [r for r in batch_results['results'] if r['status'] == 'error']
+                    failed_results = [r for r in batch_results.get('results', []) if isinstance(r, dict) and r.get('status') == 'error']
                     if failed_results:
                         with st.expander(f"❌ Failed Files ({len(failed_results)})"):
                             for failed in failed_results:
-                                st.error(f"**{failed['filename']}**: {failed['error']}")
+                                st.error(f"**{failed.get('filename', 'Unknown')}**: {failed.get('error', 'Unknown error')}")
                 
                 except Exception as e:
                     st.error(f"❌ Batch processing failed: {str(e)}")

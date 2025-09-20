@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import json
+import time
 from datetime import datetime
 import plotly.express as px
 import plotly.graph_objects as go
@@ -416,7 +417,7 @@ def render_analytics_page():
     
     fig_bar = px.bar(job_scores, x='job_title', y='relevance_score', 
                      title="Average Relevance Score by Job Position")
-    fig_bar.update_xaxis(tickangle=45)
+    fig_bar.update_xaxes(tickangle=45)
     st.plotly_chart(fig_bar, use_container_width=True)
     
     # Verdict distribution over time
@@ -726,7 +727,7 @@ def render_advanced_analytics():
     }).round(2)
     
     job_performance.columns = ['Avg Score', 'Score StdDev', 'Total Candidates', 'Avg Hard Match', 'Avg Semantic', 'High Potential']
-    job_performance = job_performance.sort_values('Avg Score', ascending=False)
+    job_performance = job_performance.sort_values(by='Avg Score', ascending=False)
     
     st.dataframe(job_performance, use_container_width=True)
     
@@ -805,7 +806,7 @@ def render_advanced_analytics():
     # Time-based recommendations
     if len(daily_stats) > 7:
         recent_avg = daily_stats.tail(3)['avg_score'].mean()
-        older_avg = daily_stats.head(-3)['avg_score'].mean()
+        older_avg = daily_stats.iloc[:-3]['avg_score'].mean()
         
         if recent_avg < older_avg - 5:
             recommendations.append("📉 **Declining Quality Trend**: Recent candidates show lower scores. Review current sourcing channels.")
@@ -858,7 +859,7 @@ def render_advanced_analytics():
     
     with col3:
         if st.button("🎯 Export High Potential List"):
-            high_potential = df[df['verdict'] == 'High'][['candidate_name', 'candidate_email', 'job_title', 'company', 'relevance_score']].sort_values('relevance_score', ascending=False)
+            high_potential = df[df['verdict'] == 'High'][['candidate_name', 'candidate_email', 'job_title', 'company', 'relevance_score']].sort_values(by='relevance_score', ascending=False)
             high_potential_csv = high_potential.to_csv(index=False)
             st.download_button(
                 label="📥 Download High Potential (CSV)",
