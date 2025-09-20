@@ -18,13 +18,7 @@ def main():
         }
     )
     
-    # Initialize database after page config
-    if 'initialized' not in st.session_state:
-        if init_database():
-            st.session_state.initialized = True
-        else:
-            st.error("❌ System initialization failed. Please contact support for assistance.")
-            st.stop()
+    # Note: Database initialization moved after page selection to allow Student Portal access
     
     # Modern header with gradient-style design
     st.markdown("""<div style='text-align: center; padding: 1rem; background: linear-gradient(90deg, #1f77b4, #ff7f0e); border-radius: 10px; margin-bottom: 2rem;'>
@@ -71,6 +65,20 @@ def main():
         # Render student portal
         render_dashboard(page)
         return
+    
+    # Initialize database for authenticated pages only
+    if 'initialized' not in st.session_state:
+        try:
+            if init_database():
+                st.session_state.initialized = True
+            else:
+                st.error("❌ Database initialization failed. Please check your database configuration.")
+                st.info("💡 **Tip**: Ensure PostgreSQL is running or check your environment variables.")
+                st.stop()
+        except Exception as e:
+            st.error(f"❌ Database connection error: {str(e)}")
+            st.info("💡 **Tip**: Check your DATABASE_URL and ensure the database service is running.")
+            st.stop()
     
     # For all other pages, require authentication
     if not require_authentication():
