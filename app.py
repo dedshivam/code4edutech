@@ -4,6 +4,13 @@ from database_postgres import init_database
 from dashboard import render_dashboard
 from auth import require_authentication, render_user_info, check_authentication
 
+# Force Streamlit to use a writable config directory
+os.environ["STREAMLIT_HOME"] = "/tmp/.streamlit"
+os.makedirs("/tmp/.streamlit", exist_ok=True)
+
+import streamlit as st
+
+
 def main():
     # Set page config first (must be first Streamlit command)
     st.set_page_config(
